@@ -1,20 +1,46 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <dirent.h>
-#include <stdio.h>
 #include <string.h>
 #include <time.h>
 
-void snapFunction(const char *cale, int fileDescriptor) {
+#define MAX_DIR 10
+
+void createSnapshot(const char *cale, const char *outputDir) {
     DIR *dir;
     struct dirent *entry;
     struct stat fileInfo;
     char fullPath[1024];
+    char snapshotPath[2048];
+    char buffer[2048];
 
     if (!(dir = opendir(cale))) {
-        printf("Eroare la deschiderea directorului.\n ");
+ printf("Eroare la deschiderea directorului \%s.\n", cale);
+        return;
+    }
+
+    //obt nume dir
+    char *lastSlash = strrchr(cale, '/');
+    const char *dirName;  // Modificat aici
+
+    if (lastSlash) {
+        dirName = lastSlash + 1;
+    } else {
+        dirName = cale;
+    }
+
+    // creare nume
+    snprintf(snapshotPath, sizeof(snapshotPath), "%s/%s_snapshot.txt", outputDir, dirName);
+
+    int snapshotFile = open(snapshotPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+    if (snapshotFile == -1) {
+        printf("Eroare deschidere fisier de snapshot \"%s\".\n", snapshotPath);
+        closedir(dir);
         return;
     }
 
@@ -26,41 +52,48 @@ void snapFunction(const char *cale, int fileDescriptor) {
         snprintf(fullPath, sizeof(fullPath), "%s/%s", cale, entry->d_name);
 
         if (lstat(fullPath, &fileInfo) == -1) {
-            perror("Eroare la accesarea informatiei fisierului.\n");
+            perror("Eroare info fisier.\n");
             continue;
         }
 
-        if (S_ISDIR(fileInfo.st_mode)) {
-            snapFunction(fullPath, fileDescriptor);
-        } else {
-            char buf[1024];
-            time_t mtime = fileInfo.st_mtime;
-            int n = snprintf(buf, sizeof(buf), "%s\t%ld\t%s", fullPath, fileInfo.st_size, ctime(&mtime));
-            write(fileDescriptor, buf, n);
-        }
+        int bytes_written = snprintf(buffer, sizeof(buffer), "Cale: %s\n", fullPath);
+        write(snapshotFile, buffer, bytes_written);
+
+        bytes_written = snprintf(buffer, sizeof(buffer), "Dimensiune: %ld\n", fileInfo.st_size);
+        write(snapshotFile, buffer, bytes_written);
+
+        bytes_written = snprintf(buffer, sizeof(buffer), "Ultima modificare: %s", ctime(&fileInfo.st_mtime));
+        write(snapshotFile, buffer, bytes_written);
+
+        bytes_written = snprintf(buffer, sizeof(buffer), "Inode: %ld\n\n", fileInfo.st_ino);
+        write(snapshotFile, buffer, bytes_written);
     }
 
+    close(snapshotFile);
     closedir(dir);
 }
 
-
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        printf("Eroare la numarul de argumente in linia de comanda.\n");
-        return -1;
+    if (argc <=3 || argc > MAX_DIR + 3) {
+        printf("Numar invalid de argumente.\n");
+        exit(-1);
     }
 
-    const char *cale = argv[1];
+    const char *outputDir = NULL;
+    int dirsEndIndex = argc - 2;
 
-    int snapshotFile = open("snapshot.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-
-    if (snapshotFile == -1) {
-        printf("Eroare la deschiderea directorului.\n");
-        return -1;
+    if (strcmp(argv[dirsEndIndex], "-o") != 0) {
+        printf("Nu exista -o .\n");
+        exit(-1);
     }
 
-    snapFunction(cale, snapshotFile);
+    outputDir = argv[dirsEndIndex + 1];
 
-    close(snapshotFile);
+    for (int i = 1; i < dirsEndIndex; i++) {
+        createSnapshot(argv[i], outputDir);
+    }
+
+
+    printf("All good all done. =)\n");
     return 0;
 }

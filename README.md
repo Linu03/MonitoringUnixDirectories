@@ -20,7 +20,7 @@ Cerinta 2:
 
 Cerinta 3: 
 
-![image](https://github.com/Linu03/operating_systems_project/assets/163161692/8a9abf69-a647-4350-a135-0808e4d13d3a)
+![image](https://github.com/Linu03/MonitoringUnixDirectories/assets/163161692/83aa8209-4332-4b4e-af57-2978fb9fd0e8)
 
 
 

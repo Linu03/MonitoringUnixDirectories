@@ -21,3 +21,10 @@ Cerinta 2:
 Cerinta 3: 
 
 ![image](https://github.com/Linu03/operating_systems_project/assets/163161692/8a9abf69-a647-4350-a135-0808e4d13d3a)
+
+
+
+Cerinta 4: 
+
+![_712020cc79414abfb14fb0a3c8a22242543290-Proiect SO Saptamana 9-150424-114903_page-0001](https://github.com/Linu03/MonitoringUnixDirectories/assets/163161692/f268c517-b39d-450f-9017-2b83990dd4cd)
+

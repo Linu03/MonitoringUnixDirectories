@@ -28,3 +28,4 @@ Cerinta 4:
 
 ![_712020cc79414abfb14fb0a3c8a22242543290-Proiect SO Saptamana 9-150424-114903_page-0001](https://github.com/Linu03/MonitoringUnixDirectories/assets/163161692/f268c517-b39d-450f-9017-2b83990dd4cd)
 
+![_712020cc79414abfb14fb0a3c8a22242543290-Proiect SO Saptamana 9-150424-114903_page-0002 (1)](https://github.com/Linu03/MonitoringUnixDirectories/assets/163161692/894f5710-add7-44dc-8a27-7219161c091a)

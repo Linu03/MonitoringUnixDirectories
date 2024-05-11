@@ -14,6 +14,8 @@
 
 struct stat stat_buffer;
 
+int contor_fisiere_corupte = 0;
+
 int comparare_snapshot(char sn1[], int fd1, char sn2[], int fd2) {
     fstat(fd1, &stat_buffer);
     int size1 = stat_buffer.st_size;
@@ -44,13 +46,60 @@ int comparare_snapshot(char sn1[], int fd1, char sn2[], int fd2) {
     return 0; // identice
 }
 
-void createSnapshotRecursive(const char *cale, int snapshotFile) {
+void createSnapshotRecursive(const char *cale, int snapshotFile,char* izolare) {
+  pid_t w;
+  int w_status;
+  int pid;
     struct stat fileInfo;
     if (lstat(cale, &fileInfo) == -1) {
         perror("Eroare info fisier \n");
         return;
     }
 
+    if (S_ISREG(fileInfo.st_mode)) {
+        if ((fileInfo.st_mode & S_IRWXU) == 0 && (fileInfo.st_mode & S_IRWXG) == 0 && (fileInfo.st_mode & S_IRWXO) == 0) {
+	  //printf("Fișierul %s are drepturile setate la 000.\n", cale);
+	  int pipefd[2];
+	  if (pipe(pipefd) < 0 ){
+	    perror("pipe");
+	    exit(-1);
+	  }
+	  pid = fork();
+	  if (pid == 0){
+	    close(pipefd[0]);
+	    dup2(pipefd[1],1);
+	    execlp("./script.sh", "script.sh", cale, NULL);
+	    perror("eroare");
+	    exit(-1);
+	  }else{
+	    close(pipefd[1]);
+	    char aux[150]= "";
+	    read(pipefd[0],aux,sizeof(aux));
+	    //printf("%s",aux);
+
+	    // inlocuim enter cu \0
+	    aux[strcspn(aux, "\n")]= '\0';
+
+	    if(strcmp(aux, "SAFE") != 0){
+	      contor_fisiere_corupte ++;
+	      char noua_cale[400] = "";   char numele_fisierului[100]= "";
+	      char* p = NULL;
+	      if ((p=strchr(cale, '/')) != 0){
+		strcpy(numele_fisierului, p+1);
+	      }
+	      snprintf(noua_cale, sizeof(noua_cale), "%s/%s", izolare, numele_fisierului);
+	      rename(cale, noua_cale);
+	    }
+	    
+	  }
+	  w = wait(&w_status);
+	  if(w == -1){
+	    perror("wait");
+	    exit(-1);
+	  }
+        }
+    }
+    
     char buffer[2048];
     int bytes_written = snprintf(buffer, sizeof(buffer), "Cale: %s\n", cale);
     write(snapshotFile, buffer, bytes_written);
@@ -97,13 +146,13 @@ void createSnapshotRecursive(const char *cale, int snapshotFile) {
 
         snprintf(fullPath, sizeof(fullPath), "%s/%s", cale, entry->d_name);
 
-        createSnapshotRecursive(fullPath, snapshotFile);
+        createSnapshotRecursive(fullPath, snapshotFile, izolare);
     }
 
     closedir(dir);
 }
 
-void createSnapshot(const char *cale, const char *outputDir, int index) {
+void createSnapshot(const char *cale, const char *outputDir, int index, char* izolare) {
     struct stat dirInfo;
     if (lstat(cale, &dirInfo) == -1) {
         perror("Eroare info director \n");
@@ -128,7 +177,7 @@ void createSnapshot(const char *cale, const char *outputDir, int index) {
         }
     }
 
-    createSnapshotRecursive(cale, snapshotFile);
+    createSnapshotRecursive(cale, snapshotFile, izolare);
     close(snapshotFile);
 
     //printf("Snapshot for Directory %d created successfully.\n", index);
@@ -138,32 +187,32 @@ int main(int argc, char *argv[]) {
     pid_t aux;
     int status;
 
-    const char *outputDir = NULL;
-
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-o") == 0 && i < argc - 1) {
-            outputDir = argv[i + 1];
-            break;
-        }
-    }
-
-    if (outputDir == NULL) {
-        printf("Eroare dir iesire\n");
+    char *outputDir = NULL;
+    char *izolare = NULL;
+    // Verificăm dacă opțiunea -o iesire este specificată corect
+    if (argc < 4 || strcmp(argv[1], "-o") != 0 || strcmp(argv[2], "iesire") != 0) {
+        printf("Utilizare: %s -o iesire dir1 dir2 .. dirn\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-
+    outputDir = malloc(strlen(argv[2]) + 1);
+    if (outputDir == NULL) {
+      perror("Eroare la alocarea memoriei pentru outputDir\n");
+      exit(EXIT_FAILURE);
+    }
+    strcpy(outputDir, argv[2]);
+    
+    izolare = malloc(strlen(argv[4]) + 1);
+    if (izolare == NULL) {
+      perror("Eroare la alocarea memoriei pentru izolare\n");
+      exit(EXIT_FAILURE);
+    }
+    strcpy(izolare, argv[4]);
+    
     pid_t pids[MAX_DIR];
     int pid_contor = 0;
 
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-o") == 0) {
-            i = i + 2;
-        }
-
-        if (i >= argc) {
-            break;
-        }
-
+    // Parcurgem argumentele de la 3 în sus pentru a crea snapshot-uri pentru fiecare director
+    for (int i = 5; i < argc; i++) {
         pid_t pid = fork();
 
         if (pid == -1) {
@@ -172,8 +221,9 @@ int main(int argc, char *argv[]) {
         }
 
         if (pid == 0) {
-            createSnapshot(argv[i], outputDir, i - 1);
-            exit(EXIT_SUCCESS);
+	  contor_fisiere_corupte = 0;
+	  createSnapshot(argv[i], outputDir, i-1, izolare);
+	  exit(contor_fisiere_corupte);
         } else {
             pids[pid_contor++] = pid;
         }
@@ -187,6 +237,11 @@ int main(int argc, char *argv[]) {
         }
         printf("Child Process %d terminated with PID %d and exit code %d.\n", i+1 , aux, WEXITSTATUS(status));
     }
+
+    free(outputDir);
+    free(izolare);
+
+    
 
     printf("All good all done.\n");
     return 0;

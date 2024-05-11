@@ -171,14 +171,14 @@ void createSnapshot(const char *cale, const char *outputDir, int index, char* iz
     int existingSnapshotFile = open(snapshotPath, O_RDONLY);
     if (existingSnapshotFile != -1) {
         int comparare = comparare_snapshot(snapshotPath, existingSnapshotFile, snapshotPath, snapshotFile);
-        close(existingSnapshotFile);
+        close(existingSnapshotFile); // Închideți fișierul existent de snapshot
         if (comparare != 0) {
             lseek(snapshotFile, 0, SEEK_SET);
         }
     }
 
     createSnapshotRecursive(cale, snapshotFile, izolare);
-    close(snapshotFile);
+    close(snapshotFile); // Închideți fișierul de snapshot
 
     //printf("Snapshot for Directory %d created successfully.\n", index);
 }
@@ -240,8 +240,6 @@ int main(int argc, char *argv[]) {
 
     free(outputDir);
     free(izolare);
-
-    
 
     printf("All good all done.\n");
     return 0;

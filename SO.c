@@ -20,8 +20,7 @@ int comparare_snapshot(char sn1[], int fd1, char sn2[], int fd2) {
     fstat(fd2, &stat_buffer);
     int size2 = stat_buffer.st_size;
 
-    if (size1 != size2)
-    {
+    if (size1 != size2) {
         return 1;
     } else {
         char buf1[SIZE] = "\0";
@@ -34,8 +33,7 @@ int comparare_snapshot(char sn1[], int fd1, char sn2[], int fd2) {
             if (strlen(buf1) != strlen(buf2)) {
                 return 1;
             }
-            for (int i = 0; i < strlen(buf1); i++) 
-            {
+            for (int i = 0; i < strlen(buf1); i++) {
                 if (buf1[i] != buf2[i]) {
                     return 1;
                 }
@@ -105,7 +103,7 @@ void createSnapshotRecursive(const char *cale, int snapshotFile) {
     closedir(dir);
 }
 
-void createSnapshot(const char *cale, const char *outputDir) {
+void createSnapshot(const char *cale, const char *outputDir, int index) {
     struct stat dirInfo;
     if (lstat(cale, &dirInfo) == -1) {
         perror("Eroare info director \n");
@@ -115,14 +113,12 @@ void createSnapshot(const char *cale, const char *outputDir) {
     char snapshotPath[2048];
     snprintf(snapshotPath, sizeof(snapshotPath), "%s/%ld_snapshot.txt", outputDir, dirInfo.st_ino);
 
-    // vf daca E deja un snapshot pt dir curr
     int snapshotFile = open(snapshotPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (snapshotFile == -1) {
         printf("Eroare deschidere fisier snapshot %s\n", snapshotPath);
         return;
     }
 
-    // vf daca E deja un snapshot
     int existingSnapshotFile = open(snapshotPath, O_RDONLY);
     if (existingSnapshotFile != -1) {
         int comparare = comparare_snapshot(snapshotPath, existingSnapshotFile, snapshotPath, snapshotFile);
@@ -134,6 +130,8 @@ void createSnapshot(const char *cale, const char *outputDir) {
 
     createSnapshotRecursive(cale, snapshotFile);
     close(snapshotFile);
+
+    //printf("Snapshot for Directory %d created successfully.\n", index);
 }
 
 int main(int argc, char *argv[]) {
@@ -154,11 +152,9 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-	// piduri proc copil
     pid_t pids[MAX_DIR];
-    int pidCount = 0;
+    int pid_contor = 0;
 
-    // proc copil pt fiecare dir 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-o") == 0) {
             i = i + 2;
@@ -168,7 +164,6 @@ int main(int argc, char *argv[]) {
             break;
         }
 
-        // proces copil nou pt snapshot
         pid_t pid = fork();
 
         if (pid == -1) {
@@ -177,19 +172,20 @@ int main(int argc, char *argv[]) {
         }
 
         if (pid == 0) {
-            createSnapshot(argv[i], outputDir);
+            createSnapshot(argv[i], outputDir, i - 1);
             exit(EXIT_SUCCESS);
         } else {
-            pids[pidCount++] = pid;
+            pids[pid_contor++] = pid;
         }
     }
 
-    for (int i = 0; i < pidCount; i++) {
+    for (int i = 0; i < pid_contor; i++) {
         aux = wait(&status);
         if (aux == -1) {
-            perror("Eroare asteptare.\n");
+            perror("Eroare asteptare\n");
             exit(EXIT_FAILURE);
         }
+        printf("Child Process %d terminated with PID %d and exit code %d.\n", i+1 , aux, WEXITSTATUS(status));
     }
 
     printf("All good all done.\n");

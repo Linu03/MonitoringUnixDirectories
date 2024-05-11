@@ -171,7 +171,7 @@ void createSnapshot(const char *cale, const char *outputDir, int index, char* iz
     int existingSnapshotFile = open(snapshotPath, O_RDONLY);
     if (existingSnapshotFile != -1) {
         int comparare = comparare_snapshot(snapshotPath, existingSnapshotFile, snapshotPath, snapshotFile);
-        close(existingSnapshotFile); // Închideți fișierul existent de snapshot
+        close(existingSnapshotFile);
         if (comparare != 0) {
             lseek(snapshotFile, 0, SEEK_SET);
         }
@@ -189,9 +189,11 @@ int main(int argc, char *argv[]) {
 
     char *outputDir = NULL;
     char *izolare = NULL;
-    // Verificăm dacă opțiunea -o iesire este specificată corect
-    if (argc < 4 || strcmp(argv[1], "-o") != 0 || strcmp(argv[2], "iesire") != 0) {
-        printf("Utilizare: %s -o iesire dir1 dir2 .. dirn\n", argv[0]);
+	
+    // Verificăm dacă opțiunea -o iesire -s director_izolare este specificată corect
+    if (argc < 4 || strcmp(argv[1], "-o") != 0 || strcmp(argv[2], "iesire") != 0 ||
+	strcmp(argv[3],"-s")!=0 ) {
+        printf("Utilizare: %s -o iesire -s director_izolare dir1 dir2 .. dirn\n", argv[0]);
         exit(EXIT_FAILURE);
     }
     outputDir = malloc(strlen(argv[2]) + 1);
@@ -211,36 +213,48 @@ int main(int argc, char *argv[]) {
     pid_t pids[MAX_DIR];
     int pid_contor = 0;
 
-    // Parcurgem argumentele de la 3 în sus pentru a crea snapshot-uri pentru fiecare director
+
     for (int i = 5; i < argc; i++) {
-        pid_t pid = fork();
 
-        if (pid == -1) {
-            perror("Eroare la fork\n");
-            exit(EXIT_FAILURE);
+      struct stat fileInfo;
+      if (lstat(argv[i], &fileInfo) == -1) {
+	perror("Eroare la obținerea informațiilor despre fișier\n");
+	continue;
         }
+      
+      if (!S_ISDIR(fileInfo.st_mode)) {
+	printf("%s nu este dir\n", argv[i]);
+	continue;
+      }
+      
+      pid_t pid = fork();
 
-        if (pid == 0) {
-	  contor_fisiere_corupte = 0;
-	  createSnapshot(argv[i], outputDir, i-1, izolare);
-	  exit(contor_fisiere_corupte);
-        } else {
-            pids[pid_contor++] = pid;
-        }
+      if (pid == -1) {
+	perror("Eroare la fork\n");
+	exit(EXIT_FAILURE);
+      }
+
+      if (pid == 0) {
+	contor_fisiere_corupte = 0;
+	createSnapshot(argv[i], outputDir, i-1, izolare);
+	exit(contor_fisiere_corupte);
+      } else {
+	pids[pid_contor++] = pid;
+      }
     }
-
+    
     for (int i = 0; i < pid_contor; i++) {
-        aux = wait(&status);
-        if (aux == -1) {
-            perror("Eroare asteptare\n");
-            exit(EXIT_FAILURE);
-        }
-        printf("Child Process %d terminated with PID %d and exit code %d.\n", i+1 , aux, WEXITSTATUS(status));
+      aux = wait(&status);
+      if (aux == -1) {
+	perror("Eroare asteptare\n");
+	exit(EXIT_FAILURE);
+      }
+      printf("Child Process %d terminated with PID %d and exit code %d.\n", i+1 , aux, WEXITSTATUS(status));
     }
-
+    
     free(outputDir);
     free(izolare);
-
+    
     printf("All good all done.\n");
     return 0;
 }

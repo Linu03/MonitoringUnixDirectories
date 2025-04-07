@@ -1,42 +1,83 @@
-Project SO
+# MonitoringUnixDirectories
+
+This project is a C + Bash application that allows recursive snapshots of the filesystem, analyzing files in a directory to detect potentially corrupt or suspicious files, then moving them to an isolation directory.
+
+------
+
+## Main Features
+
+Create snapshot for each specified directory (with information such as: size, inode, access rights, modification date, etc.).
+
+Scan for suspicious files: any file with 000 rights, non-ASCII characters, keywords such as malware, dangerous, risk, attack, or disproportionately large files vs. lines, are considered suspicious.
+
+Automatic isolation: suspicious files are moved to a dedicated quarantine directory (e.g. ./isolated_files/).
+
+Parallelization: each directory is processed in parallel using fork for increased efficiency.
+
+Snapshot comparison: changes between snapshots are detected, allowing changes in file structure to be highlighted.
+
+---
+
+## Project structure
+main.c - the main C application that:
+
+- checks arguments;
+
+- processes directories;
+
+- generates snapshots and isolates corrupt files.
+
+- script.sh - auxiliary Bash script that analyzes the contents of files to identify dangerous ones.
+
+- snapshot.txt - output file generated for each directory analyzed.
+
+------
+
+## Technologies used
+
+- C (programming language) - for file processing, process management and file system work.
+
+- Bash - for analyzing file contents in a flexible and scriptable way.
+
+- Concurrent programming - use fork() function for parallelizing directory parsing.
+
+- Linux file systems - for extracting metadata (inode, access, timestamps, etc.).
+
+- POSIX standard - for functions such as opendir, readdir, stat, fork, execlp, waitpid.
+
+------
+
+## How to run the app
+
+```gcc main.c -o snapshot_tool```
+
+```chmod +x script.sh```
+
+```./snapshot_tool -o output -s izolation_directory dir1 dir2 ... dirN```
+
+- -o iesire – the directory where snapshots are saved
+
+- -s director_izolare – the directory where the suspicious files will be moved
+
+- dir1 dir2 ... dirN – directories to be processed
 
 
-Subiectul proiectului este monitorizarea modificarilor aparute in directoare de-a lungul timpului, prin realizarea de capturi (snapshots) la
-cererea utilizatorului.
-Cerintele programului:
+### Exemple
 
-Cerinta 1: 
+``` ./snapshot_tool -o snapshots -s izolari /home/user/docs /home/user/proiect```
 
-![image](https://github.com/Linu03/operating_systems_project/assets/163161692/550a7928-8143-4c03-88cc-d2ffd00d7a87)
+``` Child Process 1 terminated with PID 12345 and exit code 2.```
+```Child Process 2 terminated with PID 12346 and exit code 0.```
+```All good all done.```
 
+------
 
+## Suspicious file criteria
 
+- Has no access rights (000)
 
-Cerinta 2: 
+- Contains non-ASCII characters
 
-![image](https://github.com/Linu03/operating_systems_project/assets/163161692/6340afc4-6223-451a-b4e0-a0e4b3c781f3)
+- Contains words such as malware, dangerous, attack, risk
 
-
-
-Cerinta 3: 
-
-![image](https://github.com/Linu03/MonitoringUnixDirectories/assets/163161692/83aa8209-4332-4b4e-af57-2978fb9fd0e8)
-
-
-
-Cerinta 4: 
-
-![_712020cc79414abfb14fb0a3c8a22242543290-Proiect SO Saptamana 9-150424-114903_page-0001](https://github.com/Linu03/MonitoringUnixDirectories/assets/163161692/f268c517-b39d-450f-9017-2b83990dd4cd)
-
-![_712020cc79414abfb14fb0a3c8a22242543290-Proiect SO Saptamana 9-150424-114903_page-0002 (1)](https://github.com/Linu03/MonitoringUnixDirectories/assets/163161692/894f5710-add7-44dc-8a27-7219161c091a)
-
-
-
-
-
-Cerinta 5: 
-
-
-![C5_1](https://github.com/Linu03/MonitoringUnixDirectories/assets/163161692/86a3730f-a502-4995-967f-80bf4286bc02)
-
-![C5_2](https://github.com/Linu03/MonitoringUnixDirectories/assets/163161692/07f9557f-aae6-499a-a2cc-754928453ca9)
+- Has a disproportionate number of characters/words compared to lines (e.g. <3 lines, >1000 words, >2000 characters)Suspicious file criteria:
